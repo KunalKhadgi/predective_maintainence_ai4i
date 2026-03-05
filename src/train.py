@@ -1,15 +1,18 @@
+import os
+
+import joblib
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from sklearn.metrics import precision_recall_curve, auc
 
-from prepare_data import load_and_prepare_data
+from data_preprocessing import RAW_DATA_PATH, prepare_training_data
 from dataset import SequenceDataset
 from lstm_model import LSTMModel
 from transformer_model import TransformerModel
 
 
-def train_and_evaluate(model, loader, epochs=5, lr=1e-3):
+def train_and_evaluate(model, loader, epochs: int = 5, lr: float = 1e-3):
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -44,14 +47,55 @@ def train_and_evaluate(model, loader, epochs=5, lr=1e-3):
     print(f"PR-AUC: {pr_auc:.4f}")
 
 
+def save_model_artifact(
+    model,
+    features,
+    scaler,
+    model_type: str = "transformer",
+    seq_len: int = 30,
+    batch_size: int = 64,
+    path: str = os.path.join("models", "model.joblib"),
+):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    artifact = {
+        "model_state": model.state_dict(),
+        "model_type": model_type,
+        "input_dim": len(features),
+        "features": features,
+        "scaler": scaler,
+        "seq_len": seq_len,
+        "batch_size": batch_size,
+    }
+
+    joblib.dump(artifact, path)
+    print(f"Saved model artifact to {path}")
+
+
 if __name__ == "__main__":
-    X, y, features = load_and_prepare_data("data/ai4i2020.csv")
+    # Load and preprocess data using the new pipeline
+    X, y, features, scaler = prepare_training_data(RAW_DATA_PATH)
 
-    dataset = SequenceDataset(X, y, seq_len=30)
-    loader = DataLoader(dataset, batch_size=64, shuffle=False)
+    seq_len = 30
+    batch_size = 64
 
-    # Choose model
+    dataset = SequenceDataset(X, y, seq_len=seq_len)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+    # Choose model (default: Transformer to match original behavior)
+    model_type = "transformer"
     model = TransformerModel(input_dim=len(features))
+    # To switch to LSTM, change the following two lines:
+    # model_type = "lstm"
     # model = LSTMModel(input_dim=len(features))
 
     train_and_evaluate(model, loader)
+    save_model_artifact(
+        model,
+        features=features,
+        scaler=scaler,
+        model_type=model_type,
+        seq_len=seq_len,
+        batch_size=batch_size,
+    )
+

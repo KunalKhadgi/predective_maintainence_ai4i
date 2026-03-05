@@ -1,24 +1,19 @@
-import pandas as pd
+from typing import Tuple, List
+
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+
+from data_preprocessing import prepare_training_data
 
 
-def load_and_prepare_data(csv_path):
-    df = pd.read_csv(csv_path)
+def load_and_prepare_data(csv_path: str) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+    """
+    Backwards-compatible wrapper around the new preprocessing pipeline.
 
-    # Drop identifier columns
-    df = df.drop(columns=["UDI", "Product ID"])
-
-    # Encode categorical variable
-    df["Type"] = df["Type"].map({"L": 0, "M": 1, "H": 2})
-
-    target = "Machine failure"
-    features = [c for c in df.columns if c != target]
-
-    X = df[features].values
-    y = df[target].values
-
-    scaler = StandardScaler()
-    X = scaler.fit_transform(X)
-
+    This preserves the original signature and return values:
+    - X: scaled feature matrix
+    - y: target array
+    - features: list of feature names
+    """
+    X, y, features, _ = prepare_training_data(csv_path)
     return X, y, features
+
